@@ -1,0 +1,9 @@
+package com.example.atssystem.skill;
+
+import com.example.atssystem.skill.entity.Skill;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.UUID;
+
+public interface SkillRepository extends JpaRepository<Skill, UUID> {
+}
