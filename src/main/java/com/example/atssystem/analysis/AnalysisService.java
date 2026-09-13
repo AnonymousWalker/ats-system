@@ -14,9 +14,12 @@ import com.example.atssystem.analysis.scoring.ScoredSkill;
 import com.example.atssystem.analysis.scoring.ScoringResult;
 import com.example.atssystem.common.BadRequestException;
 import com.example.atssystem.common.ExpiryCalculator;
+import com.example.atssystem.common.ExpiryGuard;
 import com.example.atssystem.common.ResourceNotFoundException;
+import com.example.atssystem.job.JobDescriptionRepository;
 import com.example.atssystem.job.JobDescriptionService;
 import com.example.atssystem.job.entity.JobDescription;
+import com.example.atssystem.resume.ResumeRepository;
 import com.example.atssystem.resume.ResumeService;
 import com.example.atssystem.resume.entity.Resume;
 import com.example.atssystem.skill.AnalysisReviewedSkillRepository;
@@ -47,6 +50,8 @@ import java.util.stream.Stream;
 public class AnalysisService {
 
 	private final AnalysisRepository analysisRepository;
+	private final ResumeRepository resumeRepository;
+	private final JobDescriptionRepository jobDescriptionRepository;
 	private final ResumeService resumeService;
 	private final JobDescriptionService jobDescriptionService;
 	private final SkillCatalogService skillCatalogService;
@@ -56,6 +61,8 @@ public class AnalysisService {
 
 	public AnalysisService(
 			AnalysisRepository analysisRepository,
+			ResumeRepository resumeRepository,
+			JobDescriptionRepository jobDescriptionRepository,
 			ResumeService resumeService,
 			JobDescriptionService jobDescriptionService,
 			SkillCatalogService skillCatalogService,
@@ -64,6 +71,8 @@ public class AnalysisService {
 			AnalysisReviewedSkillRepository analysisReviewedSkillRepository
 	) {
 		this.analysisRepository = analysisRepository;
+		this.resumeRepository = resumeRepository;
+		this.jobDescriptionRepository = jobDescriptionRepository;
 		this.resumeService = resumeService;
 		this.jobDescriptionService = jobDescriptionService;
 		this.skillCatalogService = skillCatalogService;
@@ -124,9 +133,7 @@ public class AnalysisService {
 
 		Map<UUID, Skill> skillsById = loadSkills(requestedIds);
 		if (skillsById.size() != requestedIds.size()) {
-			Set<UUID> missing = new HashSet<>(requestedIds);
-			missing.removeAll(skillsById.keySet());
-			throw new BadRequestException("Unknown skillId(s): " + missing);
+			throw new BadRequestException("Unknown skillId(s) in review request");
 		}
 
 		analysisReviewedSkillRepository.deleteByAnalysis(analysis);
@@ -177,9 +184,30 @@ public class AnalysisService {
 		return toResponse(analysis, extracted, reviewed, toResultResponse(scoringResult));
 	}
 
+	@Transactional
+	public void delete(UUID id) {
+		Analysis analysis = requireAnalysis(id);
+		UUID resumeId = analysis.getResume().getId();
+		UUID jobId = analysis.getJobDescription().getId();
+
+		analysisReviewedSkillRepository.deleteByAnalysis(analysis);
+		analysisSkillRepository.deleteByAnalysis(analysis);
+		analysisRepository.delete(analysis);
+		analysisRepository.flush();
+
+		if (!analysisRepository.existsByResume_Id(resumeId)) {
+			resumeRepository.deleteById(resumeId);
+		}
+		if (!analysisRepository.existsByJobDescription_Id(jobId)) {
+			jobDescriptionRepository.deleteById(jobId);
+		}
+	}
+
 	private Analysis requireAnalysis(UUID id) {
-		return analysisRepository.findById(id)
-				.orElseThrow(() -> new ResourceNotFoundException("Analysis not found: " + id));
+		Analysis analysis = analysisRepository.findById(id)
+				.orElseThrow(() -> new ResourceNotFoundException("Analysis not found"));
+		ExpiryGuard.ensureActive(analysis.getExpiresAt());
+		return analysis;
 	}
 
 	private Map<UUID, Skill> loadSkills(List<UUID> skillIds) {

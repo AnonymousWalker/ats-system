@@ -1,6 +1,7 @@
 package com.example.atssystem.job;
 
 import com.example.atssystem.common.ExpiryCalculator;
+import com.example.atssystem.common.ExpiryGuard;
 import com.example.atssystem.common.ResourceNotFoundException;
 import com.example.atssystem.job.dto.CreateJobRequest;
 import com.example.atssystem.job.dto.JobResponse;
@@ -35,8 +36,10 @@ public class JobDescriptionService {
 
 	@Transactional(readOnly = true)
 	public JobDescription requireById(UUID id) {
-		return jobDescriptionRepository.findById(id)
-				.orElseThrow(() -> new ResourceNotFoundException("Job description not found: " + id));
+		JobDescription jobDescription = jobDescriptionRepository.findById(id)
+				.orElseThrow(() -> new ResourceNotFoundException("Job description not found"));
+		ExpiryGuard.ensureActive(jobDescription.getExpiresAt());
+		return jobDescription;
 	}
 
 	private JobResponse toResponse(JobDescription jobDescription) {

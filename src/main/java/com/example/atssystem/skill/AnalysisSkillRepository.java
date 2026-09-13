@@ -3,6 +3,7 @@ package com.example.atssystem.skill;
 import com.example.atssystem.analysis.entity.Analysis;
 import com.example.atssystem.skill.entity.AnalysisSkill;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
@@ -17,4 +18,8 @@ public interface AnalysisSkillRepository extends JpaRepository<AnalysisSkill, UU
 			order by s.source, s.skill.canonicalName
 			""")
 	List<AnalysisSkill> findByAnalysisWithSkill(Analysis analysis);
+
+	@Modifying(clearAutomatically = true, flushAutomatically = true)
+	@Query("delete from AnalysisSkill s where s.analysis = :analysis")
+	void deleteByAnalysis(Analysis analysis);
 }

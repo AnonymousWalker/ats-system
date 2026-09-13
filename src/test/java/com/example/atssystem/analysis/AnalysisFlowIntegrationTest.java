@@ -117,7 +117,7 @@ class AnalysisFlowIntegrationTest extends PostgresIntegrationTestSupport {
 								}
 								"""))
 				.andExpect(status().isNotFound())
-				.andExpect(jsonPath("$.message").value("Resume not found: 00000000-0000-0000-0000-000000000001"));
+				.andExpect(jsonPath("$.message").value("Resume not found"));
 	}
 
 	@Test
@@ -141,7 +141,7 @@ class AnalysisFlowIntegrationTest extends PostgresIntegrationTestSupport {
 								}
 								""".formatted(resumeId)))
 				.andExpect(status().isNotFound())
-				.andExpect(jsonPath("$.message").value("Job description not found: 00000000-0000-0000-0000-000000000002"));
+				.andExpect(jsonPath("$.message").value("Job description not found"));
 	}
 
 	@Test
