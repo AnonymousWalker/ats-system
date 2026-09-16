@@ -1,0 +1,9 @@
+target/
+.git/
+.idea/
+.vscode/
+frontend/
+**/node_modules/
+**/.DS_Store
+*.md
+.mvn/wrapper/maven-wrapper.jar
