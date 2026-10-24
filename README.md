@@ -14,6 +14,10 @@ Open **http://localhost:8080**
 
 This starts Postgres, the API, and an nginx gateway that serves the UI and proxies `/api` under the same origin.
 
+Compose applies CPU and memory **limits** so the stack behaves like a small rented VPS (default **2 vCPU / 4 GiB** split across `postgres`, `backend`, and `web`). Copy [`.env.example`](.env.example) to `.env` to change the split. Recreate containers after changing limits: `docker compose up -d --force-recreate`.
+
+The backend container becomes healthy only after Spring Boot reports that the application, PostgreSQL connection, and seeded skill catalog are ready.
+
 ## Local development
 
 ### Backend only (+ Docker Postgres)
@@ -50,6 +54,10 @@ See [`.env.example`](.env.example). Spring Boot also reads:
 | `POSTGRES_DB` / `USER` / `PASSWORD` | `ats` | Compose Postgres settings |
 | `WEB_PORT` | `8080` | Host port for the nginx gateway |
 | `PLAYWRIGHT_BASE_URL` | `http://localhost:8080` | E2E base URL |
+| `POSTGRES_CPUS` / `MEMORY` | `0.50` / `1G` | Postgres container CPU and RAM limits |
+| `BACKEND_CPUS` / `MEMORY` | `1.25` / `2816M` | API container CPU and RAM limits |
+| `WEB_CPUS` / `MEMORY` | `0.25` / `256M` | Nginx container CPU and RAM limits |
+| `JAVA_TOOL_OPTIONS` | `-XX:MaxRAMPercentage=75.0` | JVM heap as a percent of backend container RAM |
 
 ## Tests
 
@@ -64,6 +72,18 @@ cd frontend && pnpm lint && pnpm build
 docker compose up --build -d
 cd frontend && pnpm test:e2e
 ```
+
+## Operations
+
+Spring Boot Actuator exposes a deliberately small operational surface on the backend container:
+
+| Endpoint | Purpose |
+|----------|---------|
+| `/actuator/health/liveness` | Confirms the application process can keep running |
+| `/actuator/health/readiness` | Checks application state, PostgreSQL, and the skill catalog |
+| `/actuator/prometheus` | Publishes JVM, HTTP, and datasource metrics for Prometheus |
+
+These endpoints are reachable inside the Compose network at `http://backend:8080`. Nginx does not proxy `/actuator`, so operational data is not exposed through the public web port. Health responses omit component details in normal operation.
 
 ## Project layout
 
